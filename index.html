@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Polymarket Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 28px; padding-bottom: 20px;
+    border-bottom: 1px solid #1e1e2e;
+  }
+  .header h1 {
+    font-size: 22px; font-weight: 700;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .badge {
+    font-size: 13px; color: #888; background: #14141f;
+    padding: 6px 14px; border-radius: 20px;
+    border: 1px solid #252535;
+    -webkit-text-fill-color: #888;
+  }
+  .portfolio-summary {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 28px;
+  }
+  .summary-card {
+    background: #12121c; border: 1px solid #1e1e30;
+    border-radius: 14px; padding: 18px 22px;
+  }
+  .summary-card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .summary-card .value { font-size: 24px; font-weight: 700; }
+  .summary-card .sub { font-size: 13px; color: #888; margin-top: 4px; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .card {
+    background: #12121c; border: 1px solid #1e1e30;
+    border-radius: 16px; padding: 22px;
+    position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.f1-max::before { background: linear-gradient(90deg, #ef4444, #f97316); }
+  .card.f1-pia::before { background: linear-gradient(90deg, #f59e0b, #eab308); }
+  .card.btc::before { background: linear-gradient(90deg, #f7931a, #f97316); }
+
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .card-title { font-size: 15px; font-weight: 600; color: #ccc; line-height: 1.3; }
+  .card-category { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 8px; border-radius: 6px; }
+  .cat-f1 { background: #1e1e3a; color: #a78bfa; }
+  .cat-crypto { background: #1e2e1e; color: #4ade80; }
+
+  .price-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #191928; }
+  .price-row:last-child { border-bottom: none; }
+  .price-label { font-size: 13px; color: #888; }
+  .price-value { font-size: 14px; font-weight: 600; }
+  .price-value.up { color: #4ade80; }
+  .price-value.down { color: #ef4444; }
+
+  .pnl { font-size: 13px; padding: 3px 10px; border-radius: 8px; font-weight: 600; }
+  .pnl.pos { background: #0a2e1a; color: #4ade80; }
+  .pnl.neg { background: #2e0a0a; color: #ef4444; }
+  .pnl.neutral { background: #1a1a2e; color: #888; }
+  .pnl.wait { background: #1e1e10; color: #facc15; }
+
+  .info-row { display: flex; justify-content: space-between; font-size: 12px; color: #555; margin-top: 10px; padding-top: 10px; border-top: 1px solid #191928; }
+
+  .refresh-btn {
+    background: #1e1e30; border: 1px solid #2a2a40; color: #aaa;
+    padding: 8px 18px; border-radius: 10px; cursor: pointer;
+    font-size: 13px; font-family: inherit; transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .refresh-btn:hover { background: #2a2a40; color: #fff; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: wait; }
+  .refresh-btn .spinner {
+    display: none; width: 14px; height: 14px;
+    border: 2px solid #555; border-top: 2px solid #a78bfa;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  .refresh-btn.loading .spinner { display: inline-block; }
+  .refresh-btn.loading .label { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .last-updated { font-size: 12px; color: #555; text-align: right; margin-top: 10px; }
+  .loading { color: #555; font-size: 13px; text-align: center; padding: 20px; }
+
+  .alert-box {
+    margin-top: 28px; background: #1a1a10;
+    border: 1px solid #2a2a15; border-radius: 12px;
+    padding: 14px 18px; font-size: 13px; color: #facc15;
+  }
+
+  .flash-green { animation: flashGreen 0.6s ease; }
+  @keyframes flashGreen {
+    0%, 100% { border-color: #1e1e30; }
+    50% { border-color: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.15); }
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .portfolio-summary { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>◈ Polymarket Tracker</h1>
+  <div>
+    <button class="refresh-btn" onclick="refresh()" id="refreshBtn">
+      <span class="spinner"></span>
+      <span class="label">⟳ Refresh</span>
+    </button>
+  </div>
+</div>
+
+<div class="portfolio-summary">
+  <div class="summary-card">
+    <div class="label">Total Invested</div>
+    <div class="value" id="totalInvested">$0.00</div>
+    <div class="sub">across all positions</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Current Value</div>
+    <div class="value" id="currentValue">$0.00</div>
+    <div class="sub" id="pnlSummary">flat</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Positions</div>
+    <div class="value" id="positionCount">0</div>
+    <div class="sub">active bets</div>
+  </div>
+</div>
+
+<div class="grid" id="grid">
+  <div class="loading">Loading positions...</div>
+</div>
+
+<div class="alert-box" id="btcAlert">
+  ⚡ <strong>BTC Alert:</strong> BTC > $64K on June 6 jumped from 16.5% to 24.1% since your limit order. Price may be above your 13.5¢ limit.
+</div>
+
+<div class="last-updated" id="lastUpdated">Updating...</div>
+
+<script>
+const POSITIONS = [
+  {
+    id: 'max',
+    title: 'Max Verstappen → F1 Champion 2026',
+    category: 'F1',
+    shares: 28.57,
+    entryPrice: 0.035,
+    tokenId: '1253784411034901624384838438079744067552854611268416006133878658719743556218',
+  },
+  {
+    id: 'pia',
+    title: 'Oscar Piastri → F1 Champion 2026',
+    category: 'F1',
+    shares: 33.33,
+    entryPrice: 0.03,
+    tokenId: '45035925547723382374916856041538026483546248029152755914741212781718674476988',
+  },
+  {
+    id: 'btc',
+    title: 'Bitcoin above $64K on June 6',
+    category: 'CRYPTO',
+    shares: 0,
+    entryPrice: 0.135,
+    tokenId: '112398817528321414905784177304301034258491728234850452012159631147707415480339',
+  }
+];
+
+async function fetchPrice(tokenId) {
+  const url = `https://clob.polymarket.com/midpoint?token_id=${tokenId}`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+  return parseFloat(data.mid);
+}
+
+function renderCard(pos, currentPrice) {
+  const cost = pos.shares * pos.entryPrice;
+  const value = pos.shares * currentPrice;
+  const pnl = value - cost;
+  const pnlPct = cost > 0 ? ((pnl / cost) * 100) : 0;
+
+  const isF1 = pos.category === 'F1';
+  const cardClass = pos.id === 'max' ? 'f1-max' : pos.id === 'pia' ? 'f1-pia' : 'btc';
+  const sharesDisplay = pos.shares > 0 ? pos.shares.toFixed(2) : '— (limit order)';
+
+  let pnlClass = 'neutral', pnlText = '—';
+  if (pos.shares > 0) {
+    pnlClass = pnl > 0.01 ? 'pos' : pnl < -0.01 ? 'neg' : 'neutral';
+    pnlText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%)`;
+  } else {
+    pnlClass = 'wait';
+    pnlText = '⏳ Limit open';
+  }
+
+  const priceColor = pos.shares > 0 ? (currentPrice >= pos.entryPrice ? 'up' : 'down') : 'up';
+
+  return `
+    <div class="card ${cardClass}" id="card-${pos.id}">
+      <div class="card-header">
+        <div class="card-title">${pos.title}</div>
+        <div class="card-category ${isF1 ? 'cat-f1' : 'cat-crypto'}">${pos.category}</div>
+      </div>
+      <div class="price-row">
+        <span class="price-label">Entry Price</span>
+        <span class="price-value">${(pos.entryPrice * 100).toFixed(1)}¢</span>
+      </div>
+      <div class="price-row">
+        <span class="price-label">Current Price</span>
+        <span class="price-value ${priceColor}">${(currentPrice * 100).toFixed(1)}¢</span>
+      </div>
+      <div class="price-row">
+        <span class="price-label">Shares</span>
+        <span class="price-value">${sharesDisplay}</span>
+      </div>
+      <div class="price-row">
+        <span class="price-label">Cost</span>
+        <span class="price-value">$${cost.toFixed(2)}</span>
+      </div>
+      <div class="price-row">
+        <span class="price-label">Value</span>
+        <span class="price-value">${pos.shares > 0 ? '$' + value.toFixed(2) : '—'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #191928;">
+        <span style="font-size:13px;color:#888;">P&amp;L</span>
+        <span class="pnl ${pnlClass}">${pnlText}</span>
+      </div>
+      <div class="info-row">
+        <span>Pays $${pos.shares > 0 ? (pos.shares * 1).toFixed(2) : '?'} if Yes</span>
+        <span>${pos.id === 'btc' ? 'Resolves Jun 6' : 'Resolves ~Nov 2026'}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function refresh() {
+  const btn = document.getElementById('refreshBtn');
+  const grid = document.getElementById('grid');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    let totalCost = 0, totalValue = 0, filledCount = 0;
+    let cardsHtml = '';
+    const oldPrices = {};
+
+    for (const pos of POSITIONS) {
+      if (pos.shares > 0) {
+        const oldEl = document.querySelector(`#card-${pos.id} .price-value.up, #card-${pos.id} .price-value.down`);
+        oldPrices[pos.id] = oldEl ? parseFloat(oldEl.textContent) / 100 : pos.entryPrice;
+      }
+
+      try {
+        const currentPrice = await fetchPrice(pos.tokenId);
+        const cost = pos.shares * pos.entryPrice;
+        const value = pos.shares * currentPrice;
+        totalCost += cost;
+        totalValue += value;
+        if (pos.shares > 0) filledCount++;
+        cardsHtml += renderCard(pos, currentPrice);
+      } catch (e) {
+        cardsHtml += `
+          <div class="card ${pos.id === 'max' ? 'f1-max' : pos.id === 'pia' ? 'f1-pia' : 'btc'}">
+            <div class="card-header">
+              <div class="card-title">${pos.title}</div>
+              <div class="card-category ${pos.category === 'F1' ? 'cat-f1' : 'cat-crypto'}">${pos.category}</div>
+            </div>
+            <div style="padding:30px 0;text-align:center;color:#555;font-size:14px;">
+              ⚠️ Could not fetch live data<br>
+              <span style="font-size:12px;">Check your internet connection</span>
+            </div>
+            <div class="info-row">
+              <span>Entry: ${(pos.entryPrice * 100).toFixed(1)}¢</span>
+              <span>${pos.id === 'btc' ? 'Resolves Jun 6' : 'Resolves ~Nov 2026'}</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    grid.innerHTML = cardsHtml;
+
+    document.getElementById('totalInvested').textContent = `$${totalCost.toFixed(2)}`;
+    document.getElementById('currentValue').textContent = `$${totalValue.toFixed(2)}`;
+    const totalPnl = totalValue - totalCost;
+    const pnlEl = document.getElementById('pnlSummary');
+    pnlEl.textContent = totalPnl >= 0 ? `+$${totalPnl.toFixed(2)} ↗` : `$${totalPnl.toFixed(2)} ↘`;
+    pnlEl.style.color = totalPnl >= 0 ? '#4ade80' : '#ef4444';
+    document.getElementById('positionCount').textContent = filledCount;
+
+    // Flash green if positive portfolio change
+    if (totalPnl > 0) {
+      document.querySelectorAll('.summary-card').forEach(c => c.classList.add('flash-green'));
+      setTimeout(() => document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('flash-green')), 700);
+    }
+
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      `Last updated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · Data from Polymarket CLOB API`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// Initial load
+refresh();
+</script>
+</body>
+</html>
