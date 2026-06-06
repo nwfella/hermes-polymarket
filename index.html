@@ -338,7 +338,48 @@ const CG     = 'https://api.coingecko.com/api/v3';
 
 const CRYPTO_IDS = { btc: 'bitcoin', eth: 'ethereum', sol: 'solana' };
 
-const SEARCH_TERMS = []; // Not used — see searchCryptoEvents()
+const SEARCH_TERMS = []; // unused
+
+// Known crypto daily market token IDs (No tokens).
+// Updated periodically by the cron scanner — the dashboard fetches live prices from CLOB API.
+const KNOWN_MARKETS = [
+  // === BTC June 6 (resolves noon ET today) ===
+  { id: 'btc-66k-jun6', title: 'BTC > $66K June 6', asset: 'btc', threshold: 66000, direction: 'above',
+    noToken: '1797778471420934098230553609276860268220365865739236034335145903435468619148',
+    resolveDay: 6, resolveStr: 'Jun 6' },
+  { id: 'btc-68k-jun6', title: 'BTC > $68K June 6', asset: 'btc', threshold: 68000, direction: 'above',
+    noToken: '52640331122687388441703863504160817137381387344300117551664993147266831527119',
+    resolveDay: 6, resolveStr: 'Jun 6' },
+
+  // === BTC June 7 (resolves noon ET Sat) ===
+  { id: 'btc-66k-jun7', title: 'BTC > $66K June 7', asset: 'btc', threshold: 66000, direction: 'above',
+    noToken: '3317692126200004890591393837984247048816983777927973556754175085372344277816',
+    resolveDay: 7, resolveStr: 'Jun 7' },
+  { id: 'btc-68k-jun7', title: 'BTC > $68K June 7', asset: 'btc', threshold: 68000, direction: 'above',
+    noToken: '88187724738711923215132985505257475496948095020980976239399491500665936110441',
+    resolveDay: 7, resolveStr: 'Jun 7' },
+
+  // === BTC June 8 (resolves noon ET Sun) ===
+  { id: 'btc-64k-jun8', title: 'BTC > $64K June 8', asset: 'btc', threshold: 64000, direction: 'above',
+    noToken: '37067912673428617851937570344528335092077451872612305983387768021666990619797',
+    resolveDay: 8, resolveStr: 'Jun 8' },
+  { id: 'btc-66k-jun8', title: 'BTC > $66K June 8', asset: 'btc', threshold: 66000, direction: 'above',
+    noToken: '21690824686016976911885448031360682678233951232857947622787418697355878653913',
+    resolveDay: 8, resolveStr: 'Jun 8' },
+
+  // === ETH June 7 ===
+  { id: 'eth-1600-jun7', title: 'ETH > $1,600 June 7', asset: 'eth', threshold: 1600, direction: 'above',
+    noToken: '102495662473686238246760405795075166750820471447681679590828950869303098923053',
+    resolveDay: 7, resolveStr: 'Jun 7' },
+
+  // === SOL Weekly (resolves Sun midnight June 1-7) ===
+  { id: 'sol-dip50-jun7', title: 'SOL dip to $50 Jun 1-7', asset: 'sol', threshold: 50, direction: 'dip',
+    noToken: '32456279732886518347580798818235163395785399936892896186295732613729518986954',
+    resolveDay: 7, resolveStr: 'Jun 1-7' },
+  { id: 'sol-dip40-jun7', title: 'SOL dip to $40 Jun 1-7', asset: 'sol', threshold: 40, direction: 'dip',
+    noToken: '47674048399439546847405048147055702963688175479503460055473519117703760296267',
+    resolveDay: 7, resolveStr: 'Jun 1-7' },
+];
 
 // ========================================================================
 // PORTFOLIO POSITIONS
@@ -561,63 +602,103 @@ function renderSpotPrices(prices) {
 }
 
 /**
- * Search Gamma API for crypto daily events by keyword.
- * Returns array of { eventTitle, eventSlug, markets: [...] }
+ * Use hardcoded known markets + live CLOB API prices.
+ * Gamma API is blocked from browser — CLOB API works fine.
  */
-async function searchCryptoEvents() {
+async function fetchMarketData() {
   const results = [];
 
-  // Approach 1: Fetch by tag=crypto and title-match
-  try {
-    const events = await apiGet(`${GAMMA}/events?tag=crypto&limit=50&closed=false&active=true`);
-    for (const evt of events) {
-      const title = (evt.title || '').toLowerCase();
-      const isCryptoPrice = ['bitcoin','ethereum','solana','btc','eth','sol'].some(t => title.includes(t));
-      if (!isCryptoPrice) continue;
-      const activeMarkets = (evt.markets || []).filter(m => !m.closed);
-      if (activeMarkets.length) results.push({ eventTitle: evt.title, eventSlug: evt.slug, volume: evt.volume, markets: activeMarkets });
+  for (const mk of KNOWN_MARKETS) {
+    try {
+      // Fetch midpoint price from CLOB
+      const mid = await apiGet(`${CLOB}/midpoint?token_id=${mk.noToken}`);
+      const midPrice = parseFloat(mid.mid);
+
+      // Fetch orderbook for real fill data
+      let book = null;
+      try {
+        book = await apiGet(`${CLOB}/book?token_id=${mk.noToken}`);
+      } catch { /* orderbook optional */ }
+
+      const asks = book ? (book.asks || []).sort((a,b) => parseFloat(a.price)-parseFloat(b.price)) : [];
+      const bestAsk = asks.length > 0 ? { price: parseFloat(asks[0].price), size: parseFloat(asks[0].size) } : null;
+
+      results.push({
+        id: mk.id,
+        question: mk.title,
+        slug: mk.id,
+        volume: 0,
+        yesP: 1 - midPrice,
+        noP: midPrice,
+        playType: midPrice >= 0.95 ? '💰 SCALP' : (midPrice <= 0.05 ? '🎰 ASYMMETRIC' : '📊 NEUTRAL'),
+        playLabel: midPrice >= 0.95 ? '💰 Scalp' : (midPrice >= 0.85 ? '🎯 Edge' : '📊 Neutral'),
+        badgeClass: midPrice >= 0.95 ? 'badge-scalp' : (midPrice >= 0.85 ? 'badge-asymmetric' : ''),
+        asset: mk.asset,
+        threshold: mk.threshold,
+        direction: mk.direction,
+        spotPrice: null, // filled below
+        resolveStr: mk.resolveStr,
+        noToken: mk.noToken,
+        score: 0,
+        book: bestAsk ? {
+          askPrice: bestAsk.price,
+          askSize: bestAsk.size,
+          totalCost: bestAsk.price * bestAsk.size,
+          returnPct: (1 - bestAsk.price) * 100,
+        } : null,
+      });
+    } catch (e) {
+      // Skip markets where CLOB fetch fails
     }
-  } catch (e) { console.warn('tag=crypto failed:', e); }
-
-  // Approach 2: Fetch generic events and title-match
-  if (results.length < 5) {
-    try {
-      const events = await apiGet(`${GAMMA}/events?limit=100&closed=false&active=true`);
-      for (const evt of events) {
-        const title = (evt.title || '').toLowerCase();
-        const isCryptoPrice = ['bitcoin','ethereum','solana','btc','eth','sol'].some(t => title.includes(t));
-        if (!isCryptoPrice) continue;
-        const slug = evt.slug || '';
-        // Deduplicate by checking if we already have this slug
-        if (results.some(r => r.eventSlug === slug)) continue;
-        const activeMarkets = (evt.markets || []).filter(m => !m.closed);
-        if (activeMarkets.length) results.push({ eventTitle: evt.title, eventSlug: slug, volume: evt.volume, markets: activeMarkets });
-      }
-    } catch (e) { console.warn('generic events failed:', e); }
-  }
-
-  // Approach 3: Fetch individual markets by tag
-  if (results.length < 5) {
-    try {
-      const markets = await apiGet(`${GAMMA}/markets?tag=crypto&closed=false&limit=100`);
-      for (const m of markets) {
-        const question = (m.question || '').toLowerCase();
-        const hasAsset = ['bitcoin','ethereum','solana'].some(t => question.includes(t));
-        const isPriceMarket = question.includes('above') || question.includes('dip') || question.includes('reach');
-        if (!hasAsset || !isPriceMarket) continue;
-        const slug = m.slug || '';
-        if (results.some(r => r.eventSlug === slug)) continue;
-        results.push({
-          eventTitle: m.question || 'Price Market',
-          eventSlug: slug,
-          volume: m.volume,
-          markets: [m],
-        });
-      }
-    } catch (e) { console.warn('markets endpoint failed:', e); }
   }
 
   return results;
+}
+
+async function analyzeWithSpotPrices(markets, prices) {
+  for (const m of markets) {
+    const spot = prices[m.asset];
+    m.spotPrice = spot ? spot.usd : null;
+
+    // Safety analysis
+    if (spot && m.threshold > 0) {
+      if (m.direction === 'above') {
+        const needed = ((m.threshold - spot.usd) / spot.usd) * 100;
+        m.moveNeededPct = needed;
+        if (needed > 0) {
+          m.isSafe = needed > 5;
+          m.safetyLabel = `Needs +${needed.toFixed(1)}% pump`;
+          m.safetyColor = needed > 10 ? '#4ade80' : needed > 5 ? '#facc15' : '#ef4444';
+        } else {
+          m.isSafe = false;
+          m.safetyLabel = '⚠️ Already above threshold';
+          m.safetyColor = '#ef4444';
+        }
+      } else if (m.direction === 'dip') {
+        const needed = ((spot.usd - m.threshold) / spot.usd) * 100;
+        m.moveNeededPct = needed;
+        if (needed > 0) {
+          m.isSafe = needed > 10;
+          m.safetyLabel = `Needs -${needed.toFixed(1)}% dump`;
+          m.safetyColor = needed > 20 ? '#4ade80' : needed > 10 ? '#facc15' : '#ef4444';
+        } else {
+          m.isSafe = false;
+          m.safetyLabel = '⚠️ Already below threshold';
+          m.safetyColor = '#ef4444';
+        }
+      }
+    }
+
+    // Score
+    if (m.playType === '💰 SCALP' && m.book) {
+      m.score = (m.moveNeededPct || 5) * m.book.returnPct;
+      if (m.book.totalCost > 100) m.score *= 1.2;
+    } else if (m.yesP > 0 && m.yesP <= 0.15) {
+      m.score = Math.min(100, (1 / m.yesP) * 1.5);
+    }
+  }
+
+  return markets.sort((a, b) => b.score - a.score);
 }
 
 /**
@@ -782,60 +863,27 @@ async function runScanner() {
       prices = { btc: { usd: 61402, change: 0 }, eth: { usd: 1599, change: 0 }, sol: { usd: 64.24, change: 0 } };
     }
 
-    // 2. Search for crypto events
-    const events = await searchCryptoEvents();
+    // 2. Fetch market data from CLOB API (Gamma is blocked from browser)
+    const candidates = await fetchMarketData();
 
-    // 3. Analyze all markets
-    let candidates = [];
-    const seen = new Set();
-
-    for (const evt of events) {
-      for (const m of evt.markets) {
-        if (seen.has(m.slug)) continue;
-        seen.add(m.slug);
-
-        const analysis = analyzeMarket(m, prices);
-        // Only keep interesting ones: scalp (No > 85%) or contrarian (Yes < 15%) or edge
-        if (analysis.noP >= 0.85 || analysis.yesP <= 0.15 || (analysis.yesP >= 0.4 && analysis.yesP <= 0.6)) {
-          candidates.push(analysis);
-        }
-      }
-    }
-
-    // 4. For scalp candidates, fetch orderbooks
-    const scalpCandidates = candidates.filter(c => c.playType === 'scalp' && c.noToken);
-    // Fetch top 8 orderbooks
-    for (const c of scalpCandidates.slice(0, 8)) {
-      const book = await fetchBestAsk(c.noToken);
-      if (book) {
-        c.book = book;
-        // Re-score with real ask
-        c.score = c.isSafe ? Math.min(c.moveNeededPct || 0, 50) * book.returnPct : 0;
-        // Bonus for large fillable size
-        if (book.totalCost > 100) c.score *= 1.2;
-        if (book.totalCost > 1000) c.score *= 1.3;
-      }
-      await sleep(100);
-    }
-
-    // 5. Sort by score descending
-    candidates.sort((a, b) => b.score - a.score);
+    // 3. Analyze with spot prices
+    const analyzed = await analyzeWithSpotPrices(candidates, prices);
 
     // 6. Render
-    if (candidates.length === 0) {
+    if (analyzed.length === 0) {
       container.innerHTML = `
         <div class="scan-empty">
-          🕵️ No obvious opportunities found right now<br>
-          <span style="font-size:12px;color:#555;">Try again later or check trending events manually</span>
+          🕵️ No opportunities loaded for today<br>
+          <span style="font-size:12px;color:#555;">Scanner data will refresh when new markets are available</span>
         </div>
       `;
     } else {
-      renderScannerResults(container, candidates, prices);
+      renderScannerResults(container, analyzed, prices);
     }
 
     const now = new Date();
     document.getElementById('scanLastUpdated').textContent =
-      `Last scanned: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · Analyzed ${candidates.length} markets · Data from Polymarket + CoinGecko`;
+      `Last scanned: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · ${analyzed.length} markets · Data from Polymarket CLOB + CoinGecko`;
 
   } catch (e) {
     container.innerHTML = `
@@ -851,24 +899,23 @@ async function runScanner() {
 }
 
 function renderScannerResults(container, candidates, prices) {
-  // Separate into tabs: Scalps (No > 95%), Asymmetric (rest)
-  const scalps = candidates.filter(c => c.playType === 'scalp').slice(0, 10);
-  const edges = candidates.filter(c => c.playType !== 'scalp').slice(0, 8);
+  const scalps = candidates.filter(c => c.playType === '💰 SCALP').slice(0, 10);
+  const edges = candidates.filter(c => c.playType !== '💰 SCALP').slice(0, 8);
 
   let html = '';
 
-  // --- SCALPS SECTION ---
-  if (scalps.length > 0) {
-    html += `<h3 style="font-size:15px;font-weight:600;color:#4ade80;margin-bottom:12px;">💰 Scalp Plays — Near-Certain No (buy No, small return, near-zero risk)</h3>`;
-    html += `<div class="scanner-table-wrap"><table class="scanner-table">
-      <thead><tr>
-        <th>Market</th>
-        <th>Resolves</th>
-        <th>No Price</th>
-        <th>Return</th>
-        <th>Your Cost</th>
-        <th>Safety</th>
-      </tr></thead><tbody>`;
+    // --- SCALPS SECTION ---
+    if (scalps.length > 0) {
+      html += `<h3 style="font-size:15px;font-weight:600;color:#4ade80;margin-bottom:12px;">💰 Scalp Plays — Buy NO (near-certain, small return, resolves 1-2 days)</h3>`;
+      html += `<div class="scanner-table-wrap"><table class="scanner-table">
+        <thead><tr>
+          <th>Market</th>
+          <th>Resolves</th>
+          <th>No Price</th>
+          <th>Return</th>
+          <th>Your Cost</th>
+          <th>Safety</th>
+        </tr></thead><tbody>`;
 
     for (const c of scalps) {
       const bookReturn = c.book ? c.book.returnPct.toFixed(2) + '%' : '—';
