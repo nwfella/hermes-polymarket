@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hermes Polymarket Dashboard</title>
+<title>Hermes Polymarket — Portfolio + Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,25 +14,51 @@
     padding: 24px;
     min-height: 100vh;
   }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 0;
+    border-bottom: 1px solid #1e1e2e; padding-left: 4px;
+  }
+  .tab {
+    padding: 10px 22px; cursor: pointer; font-size: 14px; font-weight: 500;
+    border-radius: 10px 10px 0 0; color: #666; transition: all 0.2s;
+    border: 1px solid transparent; border-bottom: none;
+    user-select: none;
+  }
+  .tab:hover { color: #aaa; background: #12121c; }
+  .tab.active {
+    color: #e0e0e0; background: #12121c;
+    border-color: #1e1e30; position: relative;
+  }
+  .tab.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+    height: 2px; background: #12121c;
+  }
+  .tab-badge {
+    display: inline-block; font-size: 10px; padding: 1px 7px;
+    border-radius: 10px; background: #1e2e1e; color: #4ade80;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ===== HEADER ===== */
   .header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 28px; padding-bottom: 20px;
-    border-bottom: 1px solid #1e1e2e;
+    margin-bottom: 24px; padding-bottom: 0;
   }
   .header h1 {
     font-size: 22px; font-weight: 700;
     background: linear-gradient(135deg, #a78bfa, #60a5fa);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   }
-  .header .badge {
-    font-size: 13px; color: #888; background: #14141f;
-    padding: 6px 14px; border-radius: 20px;
-    border: 1px solid #252535;
-    -webkit-text-fill-color: #888;
-  }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  /* ===== PORTFOLIO SUMMARY ===== */
   .portfolio-summary {
     display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 16px; margin-bottom: 28px;
+    gap: 16px; margin-bottom: 24px;
   }
   .summary-card {
     background: #12121c; border: 1px solid #1e1e30;
@@ -42,10 +68,9 @@
   .summary-card .value { font-size: 24px; font-weight: 700; }
   .summary-card .sub { font-size: 13px; color: #888; margin-top: 4px; }
 
-  .grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-  }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+  /* ===== PORTFOLIO CARDS ===== */
   .card {
     background: #12121c; border: 1px solid #1e1e30;
     border-radius: 16px; padding: 22px;
@@ -80,6 +105,7 @@
 
   .info-row { display: flex; justify-content: space-between; font-size: 12px; color: #555; margin-top: 10px; padding-top: 10px; border-top: 1px solid #191928; }
 
+  /* ===== BUTTONS ===== */
   .refresh-btn {
     background: #1e1e30; border: 1px solid #2a2a40; color: #aaa;
     padding: 8px 18px; border-radius: 10px; cursor: pointer;
@@ -97,12 +123,11 @@
   .refresh-btn.loading .label { display: none; }
 
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .last-updated { font-size: 12px; color: #555; text-align: right; margin-top: 10px; }
-  .loading { color: #555; font-size: 13px; text-align: center; padding: 20px; }
+  .loading { color: #555; font-size: 13px; text-align: center; padding: 40px 20px; }
 
   .alert-box {
-    margin-top: 28px; background: #1a1a10;
+    margin-top: 24px; background: #1a1a10;
     border: 1px solid #2a2a15; border-radius: 12px;
     padding: 14px 18px; font-size: 13px; color: #facc15;
   }
@@ -113,53 +138,210 @@
     50% { border-color: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.15); }
   }
 
+  /* ===== SCANNER STYLES ===== */
+  .scanner-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .scanner-header h2 { font-size: 17px; font-weight: 600; color: #ccc; }
+  .spot-prices {
+    display: flex; gap: 20px; align-items: center;
+    background: #12121c; border: 1px solid #1e1e30;
+    border-radius: 12px; padding: 10px 20px;
+  }
+  .spot-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .spot-label { color: #666; font-weight: 500; }
+  .spot-value { color: #e0e0e0; font-weight: 600; }
+  .spot-change { font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+  .spot-change.up { background: #0a2e1a; color: #4ade80; }
+  .spot-change.down { background: #2e0a0a; color: #ef4444; }
+
+  .scanner-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+  }
+  .scan-card {
+    background: #12121c; border: 1px solid #1e1e30;
+    border-radius: 14px; padding: 20px; position: relative;
+    transition: border-color 0.3s;
+  }
+  .scan-card:hover { border-color: #2a2a40; }
+  .scan-card .badge {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 10px; font-weight: 600; padding: 4px 10px;
+    border-radius: 20px; letter-spacing: 0.3px;
+  }
+  .badge-scalp { background: #0a2e1a; color: #4ade80; border: 1px solid #1a3e2a; }
+  .badge-asymmetric { background: #2a1a0a; color: #facc15; border: 1px solid #3a2a1a; }
+  .badge-contrarian { background: #1a0a2e; color: #a78bfa; border: 1px solid #2a1a3e; }
+
+  .scan-card .play-title { font-size: 15px; font-weight: 600; color: #ddd; margin-bottom: 12px; padding-right: 80px; }
+  .scan-card .play-meta { font-size: 12px; color: #555; margin-bottom: 12px; }
+
+  .scan-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .scan-stat { padding: 6px 0; }
+  .scan-stat .sl { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.3px; }
+  .scan-stat .sv { font-size: 14px; font-weight: 600; color: #ccc; }
+  .scan-stat .sv.green { color: #4ade80; }
+  .scan-stat .sv.yellow { color: #facc15; }
+  .scan-stat .sv.red { color: #ef4444; }
+  .scan-stat .sv.orange { color: #fb923c; }
+
+  .scan-desc {
+    font-size: 12px; color: #555; margin-top: 10px; padding-top: 10px; border-top: 1px solid #191928;
+    line-height: 1.5;
+  }
+
+  .scan-error {
+    background: #2e0a0a; border: 1px solid #3e1a1a;
+    border-radius: 12px; padding: 30px; text-align: center; color: #ef4444;
+    font-size: 14px;
+  }
+
+  .scan-empty {
+    background: #12121c; border: 1px dashed #2a2a30;
+    border-radius: 12px; padding: 40px; text-align: center; color: #555;
+    font-size: 14px; line-height: 1.7;
+  }
+
+  /* ===== SCANNER TABLE VIEW ===== */
+  .scanner-table-wrap { overflow-x: auto; margin-top: 16px; }
+  .scanner-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .scanner-table th {
+    text-align: left; padding: 10px 14px; font-weight: 600; color: #666;
+    border-bottom: 1px solid #1e1e30; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .scanner-table td {
+    padding: 12px 14px; border-bottom: 1px solid #191928; color: #ccc;
+    vertical-align: middle;
+  }
+  .scanner-table tr:hover td { background: #14141f; }
+  .scanner-table .type-badge {
+    display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 10px;
+    border-radius: 20px;
+  }
+  .type-badge.safe { background: #0a2e1a; color: #4ade80; }
+  .type-badge.edge { background: #2a1a0a; color: #facc15; }
+  .type-badge.contrarian { background: #1a0a2e; color: #a78bfa; }
+
+  .progress-bar { width: 100%; height: 4px; background: #1e1e30; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+  .progress-fill.green { background: #4ade80; }
+  .progress-fill.yellow { background: #facc15; }
+  .progress-fill.orange { background: #fb923c; }
+
+  .scanner-subtitle { font-size: 14px; color: #888; margin-top: -12px; margin-bottom: 20px; }
+
+  /* ===== RESPONSIVE ===== */
   @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; }
     .portfolio-summary { grid-template-columns: 1fr; }
+    .scanner-grid { grid-template-columns: 1fr; }
+    .spot-prices { flex-wrap: wrap; gap: 10px; }
+    .scanner-table th, .scanner-table td { padding: 8px 10px; font-size: 12px; }
   }
 </style>
 </head>
 <body>
 
+<!-- ===== HEADER ===== -->
 <div class="header">
-  <h1>◈ Polymarket Tracker</h1>
-  <div>
-    <button class="refresh-btn" onclick="refresh()" id="refreshBtn">
+  <h1>◈ Polymarket Hub</h1>
+  <div class="header-right">
+    <span class="tab-badge" id="liveTime"></span>
+  </div>
+</div>
+
+<!-- ===== TABS ===== -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('portfolio')" id="tab-portfolio">📊 Portfolio</div>
+  <div class="tab" onclick="switchTab('scanner')" id="tab-scanner">🔍 Opportunity Scanner</div>
+</div>
+
+<!-- ===== TAB: PORTFOLIO ===== -->
+<div class="tab-content active" id="content-portfolio">
+  <div class="portfolio-summary">
+    <div class="summary-card">
+      <div class="label">Total Invested</div>
+      <div class="value" id="totalInvested">$0.00</div>
+      <div class="sub">across all positions</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Current Value</div>
+      <div class="value" id="currentValue">$0.00</div>
+      <div class="sub" id="pnlSummary">flat</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Positions</div>
+      <div class="value" id="positionCount">0</div>
+      <div class="sub">active bets</div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <button class="refresh-btn" onclick="refreshPortfolio()" id="pfRefreshBtn">
       <span class="spinner"></span>
-      <span class="label">⟳ Refresh</span>
+      <span class="label">⟳ Refresh Prices</span>
     </button>
   </div>
-</div>
 
-<div class="portfolio-summary">
-  <div class="summary-card">
-    <div class="label">Total Invested</div>
-    <div class="value" id="totalInvested">$0.00</div>
-    <div class="sub">across all positions</div>
+  <div class="grid" id="portfolioGrid">
+    <div class="loading">Loading positions...</div>
   </div>
-  <div class="summary-card">
-    <div class="label">Current Value</div>
-    <div class="value" id="currentValue">$0.00</div>
-    <div class="sub" id="pnlSummary">flat</div>
+
+  <div class="alert-box" id="btcAlert">
+    ⚡ <strong>BTC Alert:</strong> BTC > $64K on June 6 — your limit order at 13.5¢. Current Yes price: <span id="btcAlertPrice">5.9¢</span>
   </div>
-  <div class="summary-card">
-    <div class="label">Positions</div>
-    <div class="value" id="positionCount">0</div>
-    <div class="sub">active bets</div>
+
+  <div class="last-updated" id="pfLastUpdated">Updating...</div>
+</div>
+
+<!-- ===== TAB: SCANNER ===== -->
+<div class="tab-content" id="content-scanner">
+  <div class="scanner-header">
+    <h2>🔍 Live Market Scan</h2>
+    <div class="spot-prices" id="spotPrices">
+      <span style="color:#555;font-size:13px;">Loading spot prices...</span>
+    </div>
   </div>
-</div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;">
+    <button class="refresh-btn" onclick="runScanner()" id="scanRefreshBtn">
+      <span class="spinner"></span>
+      <span class="label">⟳ Scan Now</span>
+    </button>
+  </div>
 
-<div class="grid" id="grid">
-  <div class="loading">Loading positions...</div>
-</div>
+  <div id="scannerResults">
+    <div class="loading">🔎 Scanning Polymarket for opportunities...</div>
+  </div>
 
-<div class="alert-box" id="btcAlert">
-  ⚡ <strong>BTC Alert:</strong> BTC > $64K on June 6 jumped from 16.5% to 24.1% since your limit order. Price may be above your 13.5¢ limit.
+  <div class="last-updated" id="scanLastUpdated"></div>
 </div>
-
-<div class="last-updated" id="lastUpdated">Updating...</div>
 
 <script>
+// ========================================================================
+// CONFIG
+// ========================================================================
+const GAMMA = 'https://gamma-api.polymarket.com';
+const CLOB   = 'https://clob.polymarket.com';
+const CG     = 'https://api.coingecko.com/api/v3';
+
+const CRYPTO_IDS = { btc: 'bitcoin', eth: 'ethereum', sol: 'solana' };
+
+const SEARCH_TERMS = [
+  'bitcoin above',
+  'ethereum above',
+  'solana dip',
+  'solana reach',
+];
+
+// ========================================================================
+// PORTFOLIO POSITIONS
+// ========================================================================
 const POSITIONS = [
   {
     id: 'max',
@@ -187,10 +369,44 @@ const POSITIONS = [
   }
 ];
 
+// ========================================================================
+// UTILITY
+// ========================================================================
+async function apiGet(url) {
+  const resp = await fetch(url, { headers: { 'User-Agent': 'hermes-dashboard/1.0' } });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+function pct(v) { return (v * 100).toFixed(1) + '%'; }
+function doll(v) { return '$' + v.toFixed(2); }
+function fmtNum(v) { return v.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ========================================================================
+// TAB SYSTEM
+// ========================================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('content-' + name).classList.add('active');
+
+  // Auto-run scanner when switching to it
+  if (name === 'scanner') {
+    const container = document.getElementById('scannerResults');
+    if (container.querySelector('.loading') || container.querySelector('.scan-empty')) {
+      runScanner();
+    }
+  }
+}
+
+// ========================================================================
+// PORTFOLIO TAB
+// ========================================================================
 async function fetchPrice(tokenId) {
-  const url = `https://clob.polymarket.com/midpoint?token_id=${tokenId}`;
-  const resp = await fetch(url);
-  const data = await resp.json();
+  const data = await apiGet(`${CLOB}/midpoint?token_id=${tokenId}`);
   return parseFloat(data.mid);
 }
 
@@ -200,7 +416,6 @@ function renderCard(pos, currentPrice) {
   const pnl = value - cost;
   const pnlPct = cost > 0 ? ((pnl / cost) * 100) : 0;
 
-  const isF1 = pos.category === 'F1';
   const cardClass = pos.id === 'max' ? 'f1-max' : pos.id === 'pia' ? 'f1-pia' : 'btc';
   const sharesDisplay = pos.shares > 0 ? pos.shares.toFixed(2) : '— (limit order)';
 
@@ -219,7 +434,7 @@ function renderCard(pos, currentPrice) {
     <div class="card ${cardClass}" id="card-${pos.id}">
       <div class="card-header">
         <div class="card-title">${pos.title}</div>
-        <div class="card-category ${isF1 ? 'cat-f1' : 'cat-crypto'}">${pos.category}</div>
+        <div class="card-category ${pos.category === 'F1' ? 'cat-f1' : 'cat-crypto'}">${pos.category}</div>
       </div>
       <div class="price-row">
         <span class="price-label">Entry Price</span>
@@ -242,7 +457,7 @@ function renderCard(pos, currentPrice) {
         <span class="price-value">${pos.shares > 0 ? '$' + value.toFixed(2) : '—'}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #191928;">
-        <span style="font-size:13px;color:#888;">P&amp;L</span>
+        <span style="font-size:13px;color:#888;">P&L</span>
         <span class="pnl ${pnlClass}">${pnlText}</span>
       </div>
       <div class="info-row">
@@ -253,23 +468,17 @@ function renderCard(pos, currentPrice) {
   `;
 }
 
-async function refresh() {
-  const btn = document.getElementById('refreshBtn');
-  const grid = document.getElementById('grid');
+async function refreshPortfolio() {
+  const btn = document.getElementById('pfRefreshBtn');
+  const grid = document.getElementById('portfolioGrid');
   btn.classList.add('loading');
   btn.disabled = true;
 
   try {
     let totalCost = 0, totalValue = 0, filledCount = 0;
     let cardsHtml = '';
-    const oldPrices = {};
 
     for (const pos of POSITIONS) {
-      if (pos.shares > 0) {
-        const oldEl = document.querySelector(`#card-${pos.id} .price-value.up, #card-${pos.id} .price-value.down`);
-        oldPrices[pos.id] = oldEl ? parseFloat(oldEl.textContent) / 100 : pos.entryPrice;
-      }
-
       try {
         const currentPrice = await fetchPrice(pos.tokenId);
         const cost = pos.shares * pos.entryPrice;
@@ -300,22 +509,21 @@ async function refresh() {
 
     grid.innerHTML = cardsHtml;
 
-    document.getElementById('totalInvested').textContent = `$${totalCost.toFixed(2)}`;
-    document.getElementById('currentValue').textContent = `$${totalValue.toFixed(2)}`;
+    document.getElementById('totalInvested').textContent = doll(totalCost);
+    document.getElementById('currentValue').textContent = doll(totalValue);
     const totalPnl = totalValue - totalCost;
     const pnlEl = document.getElementById('pnlSummary');
-    pnlEl.textContent = totalPnl >= 0 ? `+$${totalPnl.toFixed(2)} ↗` : `$${totalPnl.toFixed(2)} ↘`;
+    pnlEl.textContent = totalPnl >= 0 ? `+${doll(totalPnl)} ↗` : `${doll(totalPnl)} ↘`;
     pnlEl.style.color = totalPnl >= 0 ? '#4ade80' : '#ef4444';
     document.getElementById('positionCount').textContent = filledCount;
 
-    // Flash green if positive portfolio change
     if (totalPnl > 0) {
       document.querySelectorAll('.summary-card').forEach(c => c.classList.add('flash-green'));
       setTimeout(() => document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('flash-green')), 700);
     }
 
     const now = new Date();
-    document.getElementById('lastUpdated').textContent =
+    document.getElementById('pfLastUpdated').textContent =
       `Last updated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · Data from Polymarket CLOB API`;
   } finally {
     btn.classList.remove('loading');
@@ -323,8 +531,412 @@ async function refresh() {
   }
 }
 
-// Initial load
-refresh();
+// ========================================================================
+// SCANNER — Find scalp + asymmetric opportunities
+// ========================================================================
+async function fetchSpotPrices() {
+  const data = await apiGet(`${CG}/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true`);
+  return {
+    btc: { usd: data.bitcoin.usd, change: data.bitcoin.usd_24h_change },
+    eth: { usd: data.ethereum.usd, change: data.ethereum.usd_24h_change },
+    sol: { usd: data.solana.usd, change: data.solana.usd_24h_change },
+  };
+}
+
+function renderSpotPrices(prices) {
+  const html = Object.entries(prices).map(([key, val]) => {
+    const name = { btc: 'BTC', eth: 'ETH', sol: 'SOL' }[key];
+    const changeClass = val.change >= 0 ? 'up' : 'down';
+    const changeSign = val.change >= 0 ? '+' : '';
+    return `
+      <div class="spot-item">
+        <span class="spot-label">${name}</span>
+        <span class="spot-value">$${fmtNum(val.usd)}</span>
+        <span class="spot-change ${changeClass}">${changeSign}${val.change.toFixed(2)}%</span>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('spotPrices').innerHTML = html;
+}
+
+/**
+ * Search Gamma API for crypto daily events by keyword.
+ * Returns array of { eventTitle, eventSlug, markets: [...] }
+ */
+async function searchCryptoEvents() {
+  const results = [];
+
+  for (const term of SEARCH_TERMS) {
+    try {
+      const data = await apiGet(`${GAMMA}/public-search?q=${encodeURIComponent(term)}&limit=5`);
+      const events = data.events || [];
+      for (const evt of events) {
+        const today = new Date();
+        const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const title = evt.title || '';
+
+        // Filter: only "above" or "dip" type events for BTC/ETH/SOL, exclude CLOSED events
+        const activeMarkets = (evt.markets || []).filter(m => !m.closed);
+        if (activeMarkets.length === 0) continue;
+
+        results.push({
+          eventTitle: title,
+          eventSlug: evt.slug,
+          volume: evt.volume,
+          markets: activeMarkets,
+        });
+      }
+    } catch (e) {
+      console.warn(`Search failed for "${term}":`, e);
+    }
+    // Be gentle with rate limits
+    await sleep(200);
+  }
+  return results;
+}
+
+/**
+ * Determine play type and compute risk metrics for a market.
+ */
+function analyzeMarket(market, prices) {
+  const outcomes = (() => { try { return JSON.parse(market.outcomes); } catch { return ['Yes','No']; } })();
+  const priceStrs = (() => { try { return JSON.parse(market.outcomePrices); } catch { return ['0.5','0.5']; } })();
+  const yesP = parseFloat(priceStrs[0]);
+  const noP  = parseFloat(priceStrs[1]);
+  const question = (market.question || '').toLowerCase();
+
+  // Detect asset and threshold
+  let asset = null, threshold = 0, direction = null;
+  const assetMap = { bitcoin: 'btc', ethereum: 'eth', solana: 'sol' };
+  for (const [name, key] of Object.entries(assetMap)) {
+    if (question.includes(name)) { asset = key; break; }
+  }
+
+  // Parse threshold price
+  const priceMatch = question.match(/\$([0-9,]+)/);
+  if (priceMatch) threshold = parseFloat(priceMatch[1].replace(/,/g, ''));
+
+  if (question.includes('above')) direction = 'above';
+  else if (question.includes('dip to') || question.includes('below')) direction = 'below';
+  else if (question.includes('reach')) direction = 'reach';
+
+  // Safety: for "above" markets, No wins if price stays below threshold
+  // For "dip to" markets, No wins if price stays above threshold
+  const spotPrice = asset && prices[asset] ? prices[asset].usd : null;
+
+  let moveNeededPct = null;
+  let isSafe = false;
+  let safetyLabel = '—';
+  let safetyColor = '#555';
+
+  if (spotPrice && threshold > 0 && direction) {
+    if (direction === 'above') {
+      // No wins if price stays below threshold
+      moveNeededPct = ((threshold - spotPrice) / spotPrice) * 100;
+      if (moveNeededPct > 0) {
+        isSafe = moveNeededPct > 5;
+        safetyLabel = `Needs +${moveNeededPct.toFixed(1)}% pump`;
+        safetyColor = isSafe ? '#4ade80' : moveNeededPct > 2 ? '#facc15' : '#ef4444';
+      } else {
+        // Already above threshold — No is losing
+        safetyLabel = '⚠️ Already above threshold';
+        safetyColor = '#ef4444';
+        isSafe = false;
+      }
+    } else {
+      // "dip to" or "below" — No wins if price stays above threshold
+      moveNeededPct = ((spotPrice - threshold) / spotPrice) * 100;
+      if (moveNeededPct > 0) {
+        isSafe = moveNeededPct > 10;
+        safetyLabel = `Needs -${moveNeededPct.toFixed(1)}% dump`;
+        safetyColor = isSafe ? '#4ade80' : moveNeededPct > 5 ? '#facc15' : '#ef4444';
+      } else {
+        safetyLabel = '⚠️ Already below threshold';
+        safetyColor = '#ef4444';
+        isSafe = false;
+      }
+    }
+  }
+
+  // Determine play type
+  let playType = 'edge';
+  let playLabel = '🎯 Asymmetric';
+  let badgeClass = 'badge-asymmetric';
+
+  if (noP >= 0.95) {
+    playType = 'scalp';
+    playLabel = '💰 Scalp';
+    badgeClass = 'badge-scalp';
+  } else if (yesP <= 0.05) {
+    playType = 'contrarian';
+    playLabel = '🎰 Contrarian';
+    badgeClass = 'badge-contrarian';
+  }
+
+  // Resolution date
+  const resolveMatch = question.match(/june (\d+)/gi);
+  let resolveStr = '—';
+  if (resolveMatch) {
+    const days = resolveMatch.map(m => parseInt(m.match(/\d+/)[0])).filter(d => d);
+    if (days.length === 1) resolveStr = `Jun ${days[0]}`;
+    else if (days.length === 2) resolveStr = `Jun ${days[0]}-${days[1]}`;
+  }
+
+  const tokens = (() => { try { return JSON.parse(market.clobTokenIds); } catch { return []; } })();
+  const noToken = tokens.length >= 2 ? tokens[1] : null;
+
+  // Build a score: 0-100
+  let score = 0;
+  if (playType === 'scalp') {
+    // Higher = better scalp: safety margin × (1 - askPrice) × fillable size
+    score = isSafe ? Math.min(moveNeededPct, 50) * (1 - noP) * 100 : 0;
+  } else if (playType === 'contrarian') {
+    // Higher = better edge: (1/yesP) × safety
+    score = yesP > 0 ? (1 / yesP) * (isSafe ? 1 : 0.5) : 0;
+    score = Math.min(score, 100);
+  } else {
+    score = isSafe ? 30 : 10;
+  }
+
+  return {
+    question: market.question,
+    slug: market.slug,
+    volume: parseFloat(market.volume) || 0,
+    yesP, noP,
+    playType, playLabel, badgeClass,
+    asset, threshold, direction,
+    spotPrice, moveNeededPct, isSafe, safetyLabel, safetyColor,
+    noToken, resolveStr,
+    score,
+    outcomes,
+  };
+}
+
+/**
+ * Fetch orderbook for a token and return best ask info.
+ */
+async function fetchBestAsk(tokenId) {
+  if (!tokenId) return null;
+  try {
+    const book = await apiGet(`${CLOB}/book?token_id=${tokenId}`);
+    const asks = (book.asks || []).sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    if (asks.length === 0) return null;
+
+    const bestAsk = asks[0];
+    const price = parseFloat(bestAsk.price);
+    const size = parseFloat(bestAsk.size);
+
+    return {
+      askPrice: price,
+      askSize: size,
+      totalCost: price * size,
+      returnPct: (1 - price) * 100,
+      bidPrice: (book.bids || []).length > 0
+        ? parseFloat(book.bids.sort((a,b) => parseFloat(b.price)-parseFloat(a.price))[0].price)
+        : null,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function runScanner() {
+  const container = document.getElementById('scannerResults');
+  const btn = document.getElementById('scanRefreshBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  container.innerHTML = '<div class="loading">🔎 Scanning Polymarket for opportunities...</div>';
+
+  try {
+    // 1. Get spot prices
+    let prices;
+    try {
+      prices = await fetchSpotPrices();
+      renderSpotPrices(prices);
+    } catch (e) {
+      prices = { btc: { usd: 61402, change: 0 }, eth: { usd: 1599, change: 0 }, sol: { usd: 64.24, change: 0 } };
+    }
+
+    // 2. Search for crypto events
+    const events = await searchCryptoEvents();
+
+    // 3. Analyze all markets
+    let candidates = [];
+    const seen = new Set();
+
+    for (const evt of events) {
+      for (const m of evt.markets) {
+        if (seen.has(m.slug)) continue;
+        seen.add(m.slug);
+
+        const analysis = analyzeMarket(m, prices);
+        // Only keep interesting ones: scalp (No > 85%) or contrarian (Yes < 15%) or edge
+        if (analysis.noP >= 0.85 || analysis.yesP <= 0.15 || (analysis.yesP >= 0.4 && analysis.yesP <= 0.6)) {
+          candidates.push(analysis);
+        }
+      }
+    }
+
+    // 4. For scalp candidates, fetch orderbooks
+    const scalpCandidates = candidates.filter(c => c.playType === 'scalp' && c.noToken);
+    // Fetch top 8 orderbooks
+    for (const c of scalpCandidates.slice(0, 8)) {
+      const book = await fetchBestAsk(c.noToken);
+      if (book) {
+        c.book = book;
+        // Re-score with real ask
+        c.score = c.isSafe ? Math.min(c.moveNeededPct || 0, 50) * book.returnPct : 0;
+        // Bonus for large fillable size
+        if (book.totalCost > 100) c.score *= 1.2;
+        if (book.totalCost > 1000) c.score *= 1.3;
+      }
+      await sleep(100);
+    }
+
+    // 5. Sort by score descending
+    candidates.sort((a, b) => b.score - a.score);
+
+    // 6. Render
+    if (candidates.length === 0) {
+      container.innerHTML = `
+        <div class="scan-empty">
+          🕵️ No obvious opportunities found right now<br>
+          <span style="font-size:12px;color:#555;">Try again later or check trending events manually</span>
+        </div>
+      `;
+    } else {
+      renderScannerResults(container, candidates, prices);
+    }
+
+    const now = new Date();
+    document.getElementById('scanLastUpdated').textContent =
+      `Last scanned: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · Analyzed ${candidates.length} markets · Data from Polymarket + CoinGecko`;
+
+  } catch (e) {
+    container.innerHTML = `
+      <div class="scan-error">
+        ⚠️ Scan failed: ${e.message}<br>
+        <span style="font-size:12px;color:#888;margin-top:8px;display:block;">Check your internet connection and try again.</span>
+      </div>
+    `;
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function renderScannerResults(container, candidates, prices) {
+  // Separate into tabs: Scalps (No > 95%), Asymmetric (rest)
+  const scalps = candidates.filter(c => c.playType === 'scalp').slice(0, 10);
+  const edges = candidates.filter(c => c.playType !== 'scalp').slice(0, 8);
+
+  let html = '';
+
+  // --- SCALPS SECTION ---
+  if (scalps.length > 0) {
+    html += `<h3 style="font-size:15px;font-weight:600;color:#4ade80;margin-bottom:12px;">💰 Scalp Plays — Near-Certain No (buy No, small return, near-zero risk)</h3>`;
+    html += `<div class="scanner-table-wrap"><table class="scanner-table">
+      <thead><tr>
+        <th>Market</th>
+        <th>Resolves</th>
+        <th>No Price</th>
+        <th>Return</th>
+        <th>Your Cost</th>
+        <th>Safety</th>
+      </tr></thead><tbody>`;
+
+    for (const c of scalps) {
+      const bookReturn = c.book ? c.book.returnPct.toFixed(2) + '%' : '—';
+      const bookCost = c.book ? doll(c.book.totalCost) : '—';
+      const safetyEmoji = c.isSafe ? (c.moveNeededPct > 20 ? '🟢' : '🟡') : '🔴';
+
+      // Truncate question
+      let q = c.question || '';
+      if (q.length > 50) q = q.substring(0, 47) + '...';
+
+      html += `<tr>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(c.question || '').replace(/"/g,'&quot;')}">${q}</td>
+        <td style="color:#888;">${c.resolveStr}</td>
+        <td style="color:#4ade80;font-weight:700;">${(c.noP * 100).toFixed(2)}%</td>
+        <td style="color:#4ade80;font-weight:600;">${bookReturn}</td>
+        <td>${bookCost}</td>
+        <td style="color:${c.safetyColor};font-size:12px;">${safetyEmoji} ${c.safetyLabel}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+  }
+
+  // --- ASYMMETRIC / EDGE SECTION ---
+  if (edges.length > 0) {
+    html += `<h3 style="font-size:15px;font-weight:600;color:#facc15;margin-top:28px;margin-bottom:12px;">🎯 Asymmetric Plays — Undervalued Yes (small buy, huge upside if right)</h3>`;
+    html += `<div class="scanner-grid">`;
+
+    for (const c of edges) {
+      const upside = c.yesP > 0 ? (1 / c.yesP).toFixed(1) + 'x' : '∞';
+      const upsideVal = c.yesP > 0 ? doll(1 / c.yesP) : '∞';
+
+      html += `
+        <div class="scan-card">
+          <span class="badge ${c.badgeClass}">${c.playLabel}</span>
+          <div class="play-title">${c.question}</div>
+          <div class="play-meta">Volume: ${fmtNum(c.volume)} · Resolves ${c.resolveStr}</div>
+          <div class="scan-stats">
+            <div class="scan-stat">
+              <div class="sl">Current Price</div>
+              <div class="sv yellow">${(c.yesP * 100).toFixed(2)}¢</div>
+            </div>
+            <div class="scan-stat">
+              <div class="sl">Upside</div>
+              <div class="sv green">${upsideVal} (${upside})</div>
+            </div>
+            <div class="scan-stat">
+              <div class="sl">No Price</div>
+              <div class="sv">${(c.noP * 100).toFixed(2)}%</div>
+            </div>
+            <div class="scan-stat">
+              <div class="sl">${c.safetyLabel.includes('Needs') ? 'Move Needed' : 'Safety'}</div>
+              <div class="sv" style="color:${c.safetyColor}">${c.safetyLabel}</div>
+            </div>
+          </div>
+          ${c.spotPrice ? `<div class="scan-desc">${c.asset.toUpperCase()} at $${fmtNum(c.spotPrice)} · ${c.playLabel === '💰 Scalp' ? 'Buy No for near-guaranteed return' : 'Small Yes bet for huge upside if thesis is right'}</div>` : ''}
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+  }
+
+  // --- SUMMARY ---
+  html += `
+    <div style="margin-top:20px;padding:14px 18px;background:#12121c;border:1px solid #1e1e30;border-radius:12px;font-size:12px;color:#666;line-height:1.6;">
+      <strong style="color:#888;">How to use:</strong> Scalp plays = buy <strong>No</strong> shares. Low return but near-zero risk — hold to resolution (1-2 days). Asymmetric plays = buy <strong>Yes</strong> shares. Tiny cost, huge payout if you're right.<br>
+      ⚠️ <strong>Always check orderbook depth before placing a trade.</strong> The surface price may not be fillable.
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// ========================================================================
+// LIVE CLOCK
+// ========================================================================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('liveTime').textContent =
+    now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' · ' + now.toLocaleTimeString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ========================================================================
+// INIT
+// ========================================================================
+refreshPortfolio();
+// Don't auto-run scanner on page load — it runs when user clicks the tab
+document.getElementById('scannerResults').innerHTML =
+  '<div class="scan-empty">🔍 Click <strong>"Scan Now"</strong> or switch to this tab to find live opportunities</div>';
 </script>
 </body>
 </html>
