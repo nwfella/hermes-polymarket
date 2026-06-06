@@ -338,12 +338,7 @@ const CG     = 'https://api.coingecko.com/api/v3';
 
 const CRYPTO_IDS = { btc: 'bitcoin', eth: 'ethereum', sol: 'solana' };
 
-const SEARCH_TERMS = [
-  'bitcoin above',
-  'ethereum above',
-  'solana dip',
-  'solana reach',
-];
+const SEARCH_TERMS = []; // Not used — see searchCryptoEvents()
 
 // ========================================================================
 // PORTFOLIO POSITIONS
@@ -572,32 +567,56 @@ function renderSpotPrices(prices) {
 async function searchCryptoEvents() {
   const results = [];
 
-  for (const term of SEARCH_TERMS) {
+  // Approach 1: Fetch by tag=crypto and title-match
+  try {
+    const events = await apiGet(`${GAMMA}/events?tag=crypto&limit=50&closed=false&active=true`);
+    for (const evt of events) {
+      const title = (evt.title || '').toLowerCase();
+      const isCryptoPrice = ['bitcoin','ethereum','solana','btc','eth','sol'].some(t => title.includes(t));
+      if (!isCryptoPrice) continue;
+      const activeMarkets = (evt.markets || []).filter(m => !m.closed);
+      if (activeMarkets.length) results.push({ eventTitle: evt.title, eventSlug: evt.slug, volume: evt.volume, markets: activeMarkets });
+    }
+  } catch (e) { console.warn('tag=crypto failed:', e); }
+
+  // Approach 2: Fetch generic events and title-match
+  if (results.length < 5) {
     try {
-      const data = await apiGet(`${GAMMA}/public-search?q=${encodeURIComponent(term)}&limit=5`);
-      const events = data.events || [];
+      const events = await apiGet(`${GAMMA}/events?limit=100&closed=false&active=true`);
       for (const evt of events) {
-        const today = new Date();
-        const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const title = evt.title || '';
-
-        // Filter: only "above" or "dip" type events for BTC/ETH/SOL, exclude CLOSED events
+        const title = (evt.title || '').toLowerCase();
+        const isCryptoPrice = ['bitcoin','ethereum','solana','btc','eth','sol'].some(t => title.includes(t));
+        if (!isCryptoPrice) continue;
+        const slug = evt.slug || '';
+        // Deduplicate by checking if we already have this slug
+        if (results.some(r => r.eventSlug === slug)) continue;
         const activeMarkets = (evt.markets || []).filter(m => !m.closed);
-        if (activeMarkets.length === 0) continue;
+        if (activeMarkets.length) results.push({ eventTitle: evt.title, eventSlug: slug, volume: evt.volume, markets: activeMarkets });
+      }
+    } catch (e) { console.warn('generic events failed:', e); }
+  }
 
+  // Approach 3: Fetch individual markets by tag
+  if (results.length < 5) {
+    try {
+      const markets = await apiGet(`${GAMMA}/markets?tag=crypto&closed=false&limit=100`);
+      for (const m of markets) {
+        const question = (m.question || '').toLowerCase();
+        const hasAsset = ['bitcoin','ethereum','solana'].some(t => question.includes(t));
+        const isPriceMarket = question.includes('above') || question.includes('dip') || question.includes('reach');
+        if (!hasAsset || !isPriceMarket) continue;
+        const slug = m.slug || '';
+        if (results.some(r => r.eventSlug === slug)) continue;
         results.push({
-          eventTitle: title,
-          eventSlug: evt.slug,
-          volume: evt.volume,
-          markets: activeMarkets,
+          eventTitle: m.question || 'Price Market',
+          eventSlug: slug,
+          volume: m.volume,
+          markets: [m],
         });
       }
-    } catch (e) {
-      console.warn(`Search failed for "${term}":`, e);
-    }
-    // Be gentle with rate limits
-    await sleep(200);
+    } catch (e) { console.warn('markets endpoint failed:', e); }
   }
+
   return results;
 }
 
