@@ -293,9 +293,7 @@
     <div class="loading">Loading positions...</div>
   </div>
 
-  <div class="alert-box" id="btcAlert">
-    ⚡ <strong>BTC Alert:</strong> BTC > $64K on June 6 — your limit order at 13.5¢. Current Yes price: <span id="btcAlertPrice">5.9¢</span>
-  </div>
+  <div class="alert-box" id="pfAlert" style="display:none;"></div>
 
   <div class="last-updated" id="pfLastUpdated">Updating...</div>
   <div style="text-align:right; margin-top:4px; font-size:11px; color:#444;">
@@ -340,46 +338,109 @@ const CRYPTO_IDS = { btc: 'bitcoin', eth: 'ethereum', sol: 'solana' };
 
 const SEARCH_TERMS = []; // unused
 
-// Known crypto daily market token IDs (No tokens).
-// Updated periodically by the cron scanner — the dashboard fetches live prices from CLOB API.
+// Known crypto market token IDs (No tokens) — live prices come from the CLOB API.
+// DO NOT hand-edit the block between the markers: run refresh_markets.py, which
+// regenerates it from the live API (the browser cannot: Gamma is CORS-blocked).
+// __KNOWN_MARKETS_START__
+// Hardcoded snapshot of live Polymarket markets — refreshed 2026-09-25 by
+// refresh_markets.py (the browser cannot discover markets: Gamma is CORS-blocked
+// and only the CLOB endpoint is reachable). Entries past their resolveIso are
+// dropped at render time, so this list degrades honestly.
+const KNOWN_MARKETS_REFRESHED = '2026-09-25';
 const KNOWN_MARKETS = [
-  // === BTC June 6 (resolves noon ET today) ===
-  { id: 'btc-66k-jun6', title: 'BTC > $66K June 6', asset: 'btc', threshold: 66000, direction: 'above',
-    noToken: '1797778471420934098230553609276860268220365865739236034335145903435468619148',
-    resolveDay: 6, resolveStr: 'Jun 6' },
-  { id: 'btc-68k-jun6', title: 'BTC > $68K June 6', asset: 'btc', threshold: 68000, direction: 'above',
-    noToken: '52640331122687388441703863504160817137381387344300117551664993147266831527119',
-    resolveDay: 6, resolveStr: 'Jun 6' },
+  // === Sep 26 (resolves in 1d) ===
+  { id: 'btc-above-86000-2026-09-26', title: 'BTC > $86,000 · Sep 26', asset: 'btc', threshold: 86000, direction: 'above',
+    noToken: '46144779855303352551712991334604590188134524193754957797980721526917130928469', resolveIso: '2026-09-26', resolveStr: 'Sep 26' },  // No mid 0.980
+  { id: 'btc-above-88000-2026-09-26', title: 'BTC > $88,000 · Sep 26', asset: 'btc', threshold: 88000, direction: 'above',
+    noToken: '8354864905119399226924782203926331036226287392119664602781381834052757238240', resolveIso: '2026-09-26', resolveStr: 'Sep 26' },  // No mid 0.994
+  { id: 'eth-above-2800-2026-09-26', title: 'ETH > $2,800 · Sep 26', asset: 'eth', threshold: 2800, direction: 'above',
+    noToken: '94675555889154834568799666544611963737164038854336824129357558968487586800817', resolveIso: '2026-09-26', resolveStr: 'Sep 26' },  // No mid 0.986
+  { id: 'sol-above-130-2026-09-26', title: 'SOL > $130 · Sep 26', asset: 'sol', threshold: 130, direction: 'above',
+    noToken: '60615489344923466007670560941255424781306580119823667811606744749782746066041', resolveIso: '2026-09-26', resolveStr: 'Sep 26' },  // No mid 0.962
+  { id: 'sol-above-135-2026-09-26', title: 'SOL > $135 · Sep 26', asset: 'sol', threshold: 135, direction: 'above',
+    noToken: '83966694107283190121456753605244011868464831322699341927274609984618708115409', resolveIso: '2026-09-26', resolveStr: 'Sep 26' },  // No mid 0.974
 
-  // === BTC June 7 (resolves noon ET Sat) ===
-  { id: 'btc-66k-jun7', title: 'BTC > $66K June 7', asset: 'btc', threshold: 66000, direction: 'above',
-    noToken: '3317692126200004890591393837984247048816983777927973556754175085372344277816',
-    resolveDay: 7, resolveStr: 'Jun 7' },
-  { id: 'btc-68k-jun7', title: 'BTC > $68K June 7', asset: 'btc', threshold: 68000, direction: 'above',
-    noToken: '88187724738711923215132985505257475496948095020980976239399491500665936110441',
-    resolveDay: 7, resolveStr: 'Jun 7' },
+  // === Sep 27 (resolves in 2d) ===
+  { id: 'btc-above-86000-2026-09-27', title: 'BTC > $86,000 · Sep 27', asset: 'btc', threshold: 86000, direction: 'above',
+    noToken: '86468865657087501713416646624602810973082362486820724451651565834304074478912', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.966
+  { id: 'btc-above-88000-2026-09-27', title: 'BTC > $88,000 · Sep 27', asset: 'btc', threshold: 88000, direction: 'above',
+    noToken: '1105734990802194763132931798816021736865838962746433789368733015930748534416', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.989
+  { id: 'eth-above-2800-2026-09-27', title: 'ETH > $2,800 · Sep 27', asset: 'eth', threshold: 2800, direction: 'above',
+    noToken: '36962260554822989773267498010357150053619595813914622074677145619560495836094', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.968
+  { id: 'eth-above-2900-2026-09-27', title: 'ETH > $2,900 · Sep 27', asset: 'eth', threshold: 2900, direction: 'above',
+    noToken: '61987424433603014339236340917358738790749968085336403204594371709935287347114', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.992
+  { id: 'sol-above-130-2026-09-27', title: 'SOL > $130 · Sep 27', asset: 'sol', threshold: 130, direction: 'above',
+    noToken: '9904912214993594342745725908166454938123961863098709356341576633266278824782', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.967
+  { id: 'sol-above-135-2026-09-27', title: 'SOL > $135 · Sep 27', asset: 'sol', threshold: 135, direction: 'above',
+    noToken: '14812946472038217993825809346861614470740496766115108144438909655516308999014', resolveIso: '2026-09-27', resolveStr: 'Sep 27' },  // No mid 0.971
 
-  // === BTC June 8 (resolves noon ET Sun) ===
-  { id: 'btc-64k-jun8', title: 'BTC > $64K June 8', asset: 'btc', threshold: 64000, direction: 'above',
-    noToken: '37067912673428617851937570344528335092077451872612305983387768021666990619797',
-    resolveDay: 8, resolveStr: 'Jun 8' },
-  { id: 'btc-66k-jun8', title: 'BTC > $66K June 8', asset: 'btc', threshold: 66000, direction: 'above',
-    noToken: '21690824686016976911885448031360682678233951232857947622787418697355878653913',
-    resolveDay: 8, resolveStr: 'Jun 8' },
+  // === Sep 28 (resolves in 3d) ===
+  { id: 'btc-above-88000-2026-09-28', title: 'BTC > $88,000 · Sep 28', asset: 'btc', threshold: 88000, direction: 'above',
+    noToken: '45012080900029197828116410088114678731253127986534672425136862877198359588051', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.980
+  { id: 'btc-above-90000-2026-09-28', title: 'BTC > $90,000 · Sep 28', asset: 'btc', threshold: 90000, direction: 'above',
+    noToken: '79991248699484002356428963611026818855496836155698702345825095536833471307475', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.991
+  { id: 'eth-above-2800-2026-09-28', title: 'ETH > $2,800 · Sep 28', asset: 'eth', threshold: 2800, direction: 'above',
+    noToken: '22928788173062887638718182332807562986759921789438557302931053343345486654809', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.929
+  { id: 'eth-above-2900-2026-09-28', title: 'ETH > $2,900 · Sep 28', asset: 'eth', threshold: 2900, direction: 'above',
+    noToken: '52842316583519603574742888727982309781047544822081971822681325291164235383714', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.984
+  { id: 'eth-dip-2400-2026-09-28', title: 'ETH dip to $2,400 · Sep 28', asset: 'eth', threshold: 2400, direction: 'dip',
+    noToken: '81759590730767962963635997477867591404757052554839991946557449500382148587275', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.986
+  { id: 'eth-dip-2500-2026-09-28', title: 'ETH dip to $2,500 · Sep 28', asset: 'eth', threshold: 2500, direction: 'dip',
+    noToken: '102169753467025645933551634106898970179350946075758056246410620388765659261036', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.977
+  { id: 'sol-above-140-2026-09-28', title: 'SOL > $140 · Sep 28', asset: 'sol', threshold: 140, direction: 'above',
+    noToken: '59764585094817358917224667183096080502902122672938549054677292773465066075474', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.975
+  { id: 'sol-above-150-2026-09-28', title: 'SOL > $150 · Sep 28', asset: 'sol', threshold: 150, direction: 'above',
+    noToken: '7434305935851717229652536959882083643842571056542559536761096917345637314064', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.987
+  { id: 'sol-dip-90-2026-09-28', title: 'SOL dip to $90 · Sep 28', asset: 'sol', threshold: 90, direction: 'dip',
+    noToken: '83245381016196900633468352738344862487779510457303642678037752974597346613203', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.988
+  { id: 'sol-dip-100-2026-09-28', title: 'SOL dip to $100 · Sep 28', asset: 'sol', threshold: 100, direction: 'dip',
+    noToken: '53769060390152550663769693200528374826002176095188057147672105538016423173908', resolveIso: '2026-09-28', resolveStr: 'Sep 28' },  // No mid 0.979
 
-  // === ETH June 7 ===
-  { id: 'eth-1600-jun7', title: 'ETH > $1,600 June 7', asset: 'eth', threshold: 1600, direction: 'above',
-    noToken: '102495662473686238246760405795075166750820471447681679590828950869303098923053',
-    resolveDay: 7, resolveStr: 'Jun 7' },
+  // === Oct 1 (resolves in 6d) ===
+  { id: 'btc-above-92500-2026-10-01', title: 'BTC > $92,500 · Oct 1', asset: 'btc', threshold: 92500, direction: 'above',
+    noToken: '84601517506945565648388211443527441029737114425026636969053545907177942418296', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.961
+  { id: 'btc-above-95000-2026-10-01', title: 'BTC > $95,000 · Oct 1', asset: 'btc', threshold: 95000, direction: 'above',
+    noToken: '14104329494818789553277517497182141526991746128566541396376949277465885160222', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.983
+  { id: 'btc-dip-75000-2026-10-01', title: 'BTC dip to $75,000 · Oct 1', asset: 'btc', threshold: 75000, direction: 'dip',
+    noToken: '112679412542462799924735911609250948954201895870394981341984228771859955368487', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.974
+  { id: 'btc-dip-77500-2026-10-01', title: 'BTC dip to $77,500 · Oct 1', asset: 'btc', threshold: 77500, direction: 'dip',
+    noToken: '16286866371037423000621251621641771774253997005774900345533372386928212988431', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.950
+  { id: 'eth-above-3000-2026-10-01', title: 'ETH > $3,000 · Oct 1', asset: 'eth', threshold: 3000, direction: 'above',
+    noToken: '57213201069548630213080501607448575617963717962273034665771167963652833007590', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.945
+  { id: 'eth-above-3100-2026-10-01', title: 'ETH > $3,100 · Oct 1', asset: 'eth', threshold: 3100, direction: 'above',
+    noToken: '61277961408581797080763684924770864619288961376053023849592022655933267927366', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.972
+  { id: 'eth-dip-2300-2026-10-01', title: 'ETH dip to $2,300 · Oct 1', asset: 'eth', threshold: 2300, direction: 'dip',
+    noToken: '9558254133125720575295939092808248633315732069973526748405279025110792567183', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.969
+  { id: 'eth-dip-2400-2026-10-01', title: 'ETH dip to $2,400 · Oct 1', asset: 'eth', threshold: 2400, direction: 'dip',
+    noToken: '61959116127681950251910823504108090687861548395499044573762745939020743134277', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.954
+  { id: 'sol-above-150-2026-10-01', title: 'SOL > $150 · Oct 1', asset: 'sol', threshold: 150, direction: 'above',
+    noToken: '19336931183100923443065720541562002800297068125902152967769551027516802233008', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.971
+  { id: 'sol-above-160-2026-10-01', title: 'SOL > $160 · Oct 1', asset: 'sol', threshold: 160, direction: 'above',
+    noToken: '113504148881990877049063195187815133530741155948992077512073194838450270725728', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.988
+  { id: 'sol-dip-90-2026-10-01', title: 'SOL dip to $90 · Oct 1', asset: 'sol', threshold: 90, direction: 'dip',
+    noToken: '111827866856498976370999435548759210826761123108495467216293458421563135608286', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.985
+  { id: 'sol-dip-100-2026-10-01', title: 'SOL dip to $100 · Oct 1', asset: 'sol', threshold: 100, direction: 'dip',
+    noToken: '83375440430080420172321552379242039895162065184258484885560291817912245474512', resolveIso: '2026-10-01', resolveStr: 'Oct 1' },  // No mid 0.966
 
-  // === SOL Weekly (resolves Sun midnight June 1-7) ===
-  { id: 'sol-dip50-jun7', title: 'SOL dip to $50 Jun 1-7', asset: 'sol', threshold: 50, direction: 'dip',
-    noToken: '32456279732886518347580798818235163395785399936892896186295732613729518986954',
-    resolveDay: 7, resolveStr: 'Jun 1-7' },
-  { id: 'sol-dip40-jun7', title: 'SOL dip to $40 Jun 1-7', asset: 'sol', threshold: 40, direction: 'dip',
-    noToken: '47674048399439546847405048147055702963688175479503460055473519117703760296267',
-    resolveDay: 7, resolveStr: 'Jun 1-7' },
+  // === Dec 31 (resolves in 98d) ===
+  { id: 'eth-above-5500-2027-01-01', title: 'ETH > $5,500 · Dec 31', asset: 'eth', threshold: 5500, direction: 'above',
+    noToken: '447913121087537662187327157218300928168985707076581166939650812231975265268', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.953
+  { id: 'eth-above-6000-2027-01-01', title: 'ETH > $6,000 · Dec 31', asset: 'eth', threshold: 6000, direction: 'above',
+    noToken: '99625432243305856023409516897537718601994293111805554742206464299633923525276', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.965
+  { id: 'eth-dip-800-2027-01-01', title: 'ETH dip to $800 · Dec 31', asset: 'eth', threshold: 800, direction: 'dip',
+    noToken: '103174144827908901710509553630727677341797001295655245023709154639394277936836', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.967
+  { id: 'eth-dip-1000-2027-01-01', title: 'ETH dip to $1,000 · Dec 31', asset: 'eth', threshold: 1000, direction: 'dip',
+    noToken: '20508072772404576884266330300293267272741800260494416818259836712249628797288', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.955
+  { id: 'sol-above-260-2027-01-01', title: 'SOL > $260 · Dec 31', asset: 'sol', threshold: 260, direction: 'above',
+    noToken: '5766337708391033591848190399052309561228707811977525117340393202075901656328', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.960
+  { id: 'sol-above-280-2027-01-01', title: 'SOL > $280 · Dec 31', asset: 'sol', threshold: 280, direction: 'above',
+    noToken: '88499081029045948392775208888744696871739414261383327894511157030362164821599', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.965
+  { id: 'sol-dip-30-2027-01-01', title: 'SOL dip to $30 · Dec 31', asset: 'sol', threshold: 30, direction: 'dip',
+    noToken: '76592768185238377489861120773925528171885979180476270970526044782505021983398', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.954
+  { id: 'sol-dip-40-2027-01-01', title: 'SOL dip to $40 · Dec 31', asset: 'sol', threshold: 40, direction: 'dip',
+    noToken: '71290936611520034093626014449265441350381106650836604316273511063866041375457', resolveIso: '2027-01-01', resolveStr: 'Dec 31' },  // No mid 0.953
 ];
+// __KNOWN_MARKETS_END__
 
 // ========================================================================
 // PORTFOLIO POSITIONS
@@ -391,6 +452,7 @@ const POSITIONS = [
     category: 'F1',
     shares: 28.57,
     entryPrice: 0.035,
+    resolveStr: 'Resolves Dec 6',
     tokenId: '1253784411034901624384838438079744067552854611268416006133878658719743556218',
   },
   {
@@ -399,17 +461,13 @@ const POSITIONS = [
     category: 'F1',
     shares: 33.33,
     entryPrice: 0.03,
+    resolveStr: 'Resolves Dec 6',
     tokenId: '45035925547723382374916856041538026483546248029152755914741212781718674476988',
   },
-  {
-    id: 'btc',
-    title: 'Bitcoin above $64K on June 6',
-    category: 'CRYPTO',
-    shares: 0,
-    entryPrice: 0.135,
-    tokenId: '112398817528321414905784177304301034258491728234850452012159631147707415480339',
-  }
 ];
+// The BTC > $64K Jun 6 limit order was removed 2026-09-25: it never filled, the
+// market resolved No on 2026-06-06, and its CLOB token 404s — it rendered as a
+// fetch error next to live positions. Realised loss on it: $0 (never filled).
 
 // ========================================================================
 // UTILITY
@@ -504,7 +562,7 @@ function renderCard(pos, currentPrice) {
       </div>
       <div class="info-row">
         <span>Pays $${pos.shares > 0 ? (pos.shares * 1).toFixed(2) : '?'} if Yes</span>
-        <span>${pos.id === 'btc' ? 'Resolves Jun 6' : 'Resolves ~Nov 2026'}</span>
+        <span>${pos.resolveStr || 'Resolves ~Dec 2026'}</span>
       </div>
     </div>
   `;
@@ -528,6 +586,7 @@ async function refreshPortfolio() {
         totalCost += cost;
         totalValue += value;
         if (pos.shares > 0) filledCount++;
+        LIVE_PRICES[pos.id] = currentPrice;
         cardsHtml += renderCard(pos, currentPrice);
       } catch (e) {
         cardsHtml += `
@@ -542,7 +601,7 @@ async function refreshPortfolio() {
             </div>
             <div class="info-row">
               <span>Entry: ${(pos.entryPrice * 100).toFixed(1)}¢</span>
-              <span>${pos.id === 'btc' ? 'Resolves Jun 6' : 'Resolves ~Nov 2026'}</span>
+              <span>${pos.resolveStr || 'Resolves ~Dec 2026'}</span>
             </div>
           </div>
         `;
@@ -558,6 +617,7 @@ async function refreshPortfolio() {
     pnlEl.textContent = totalPnl >= 0 ? `+${doll(totalPnl)} ↗` : `${doll(totalPnl)} ↘`;
     pnlEl.style.color = totalPnl >= 0 ? '#4ade80' : '#ef4444';
     document.getElementById('positionCount').textContent = filledCount;
+    renderPortfolioAlert();
 
     if (totalPnl > 0) {
       document.querySelectorAll('.summary-card').forEach(c => c.classList.add('flash-green'));
@@ -572,6 +632,33 @@ async function refreshPortfolio() {
     btn.disabled = false;
   }
 }
+
+/**
+ * Data-driven alert strip. It used to be a hardcoded sentence about a June limit
+ * order that had long since resolved, still quoting a 5.9¢ price. Now it reads the
+ * live values it just fetched and stays hidden when there is nothing to say.
+ */
+function renderPortfolioAlert() {
+  const el = document.getElementById('pfAlert');
+  if (!el) return;
+  const dead = POSITIONS.filter(p => p.shares > 0 && LIVE_PRICES[p.id] != null
+                                     && p.shares * LIVE_PRICES[p.id] < 0.1 * p.shares * p.entryPrice);
+  if (dead.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const parts = dead.map(p => {
+    const px = LIVE_PRICES[p.id];
+    const pnl = p.shares * (px - p.entryPrice);
+    // "Max Verstappen → F1 Champion 2026" reads better as just the driver
+    const who = p.title.includes('→') ? p.title.split('→')[0].trim() : p.title;
+    return `<strong>${who}</strong> ${(px * 100).toFixed(2)}¢ `
+         + `(${pnl >= 0 ? '+' : '−'}$${Math.abs(pnl).toFixed(2)})`;
+  });
+  el.style.display = '';
+  el.innerHTML = `⚡ <strong>Written off:</strong> ${parts.join(' · ')} — the market has priced these out. `
+               + `Salvage value: $${dead.reduce((s, p) => s + p.shares * LIVE_PRICES[p.id], 0).toFixed(2)}.`;
+}
+
+// Live prices from the last portfolio fetch, keyed by position id.
+const LIVE_PRICES = {};
 
 // ========================================================================
 // SCANNER — Find scalp + asymmetric opportunities
@@ -605,10 +692,22 @@ function renderSpotPrices(prices) {
  * Use hardcoded known markets + live CLOB API prices.
  * Gamma API is blocked from browser — CLOB API works fine.
  */
+/**
+ * Markets whose resolveIso has passed are dropped. The list is a snapshot that
+ * refresh_markets.py regenerates; without this filter, resolved markets keep
+ * rendering as live opportunities.
+ */
+function liveKnownMarkets() {
+  const today = new Date().toISOString().slice(0, 10);
+  const live = KNOWN_MARKETS.filter(mk => !mk.resolveIso || mk.resolveIso >= today);
+  return { live, expired: KNOWN_MARKETS.length - live.length };
+}
+
 async function fetchMarketData() {
   const results = [];
+  const { live } = liveKnownMarkets();
 
-  for (const mk of KNOWN_MARKETS) {
+  for (const mk of live) {
     try {
       // Fetch midpoint price from CLOB
       const mid = await apiGet(`${CLOB}/midpoint?token_id=${mk.noToken}`);
@@ -860,7 +959,14 @@ async function runScanner() {
       prices = await fetchSpotPrices();
       renderSpotPrices(prices);
     } catch (e) {
-      prices = { btc: { usd: 61402, change: 0 }, eth: { usd: 1599, change: 0 }, sol: { usd: 64.24, change: 0 } };
+      // No hardcoded fallback: safety labels are derived from spot, so stale
+      // numbers would be rendered as live analysis.
+      container.innerHTML = `
+        <div class="scan-error">
+          ⚠️ Couldn't fetch spot prices (${e.message})<br>
+          <span style="font-size:12px;color:#888;margin-top:8px;display:block;">The scanner needs live spot prices to judge safety — try again.</span>
+        </div>`;
+      return;
     }
 
     // 2. Fetch market data from CLOB API (Gamma is blocked from browser)
@@ -871,10 +977,18 @@ async function runScanner() {
 
     // 6. Render
     if (analyzed.length === 0) {
-      container.innerHTML = `
+      const { live, expired } = liveKnownMarkets();
+      container.innerHTML = live.length === 0
+        ? `
+        <div class="scan-empty">
+          🕵️ The known-market list is stale — all ${expired} entries have passed their resolution date<br>
+          <span style="font-size:12px;color:#555;">Run <code>python refresh_markets.py</code> to pull a fresh list from Polymarket</span>
+        </div>
+      `
+        : `
         <div class="scan-empty">
           🕵️ No opportunities loaded for today<br>
-          <span style="font-size:12px;color:#555;">Scanner data will refresh when new markets are available</span>
+          <span style="font-size:12px;color:#555;">${live.length} known markets, none with a near-certain side right now</span>
         </div>
       `;
     } else {
@@ -883,7 +997,8 @@ async function runScanner() {
 
     const now = new Date();
     document.getElementById('scanLastUpdated').textContent =
-      `Last scanned: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · ${analyzed.length} markets · Data from Polymarket CLOB + CoinGecko`;
+      `Last scanned: ${now.toLocaleDateString()} ${now.toLocaleTimeString()} · ${analyzed.length} markets · `
+      + `Market list refreshed ${KNOWN_MARKETS_REFRESHED} · Data from Polymarket CLOB + CoinGecko`;
 
   } catch (e) {
     container.innerHTML = `
